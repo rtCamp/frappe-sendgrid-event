@@ -3,7 +3,7 @@ app_title = "Frappe SendGrid Event"
 app_publisher = "rtCamp"
 app_description = "Receive and track SendGrid email events in Frappe via webhooks"
 app_email = "erp@rtcamp.com"
-app_license = "agpl-3.0"
+app_license = "GNU AFFERO GENERAL PUBLIC LICENSE (v3)"
 
 # Apps
 # ------------------
@@ -143,23 +143,13 @@ app_license = "agpl-3.0"
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"frappe_sendgrid_event.tasks.all"
-# 	],
-# 	"daily": [
-# 		"frappe_sendgrid_event.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"frappe_sendgrid_event.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"frappe_sendgrid_event.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"frappe_sendgrid_event.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"cron": {
+		"*/5 * * * *": [
+			"frappe_sendgrid_event.tasks.process_sendgrid_events.execute",
+		],
+	},
+}
 
 # Testing
 # -------
@@ -249,4 +239,3 @@ app_license = "agpl-3.0"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-

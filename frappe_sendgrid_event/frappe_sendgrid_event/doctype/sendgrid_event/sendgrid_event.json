@@ -1,0 +1,191 @@
+{
+ "actions": [],
+ "autoname": "hash",
+ "creation": "2026-05-26 00:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "sg_event_id",
+  "sg_message_id",
+  "message_id",
+  "event_type",
+  "recipient_email",
+  "column_break_main",
+  "event_timestamp",
+  "processing_status",
+  "email_queue",
+  "email_subject",
+  "details_section",
+  "status_code",
+  "reason",
+  "response",
+  "column_break_details",
+  "bounce_classification",
+  "bounce_type",
+  "attempt",
+  "processing_section",
+  "error_log",
+  "raw_payload"
+ ],
+ "fields": [
+  {
+   "fieldname": "sg_event_id",
+   "fieldtype": "Data",
+   "label": "SG Event ID",
+   "length": 255,
+   "read_only": 1,
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "sg_message_id",
+   "fieldtype": "Data",
+   "label": "SG Message ID",
+   "length": 255,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "message_id",
+   "fieldtype": "Data",
+   "label": "Message ID",
+   "length": 255,
+   "read_only": 1,
+   "search_index": 1
+  },
+  {
+   "fieldname": "event_type",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Event Type",
+   "read_only": 1,
+   "reqd": 1
+  },
+  {
+   "fieldname": "recipient_email",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Recipient Email",
+   "length": 255,
+   "options": "Email",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_main",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "event_timestamp",
+   "fieldtype": "Datetime",
+   "label": "Event Timestamp",
+   "read_only": 1
+  },
+  {
+   "default": "Pending",
+   "fieldname": "processing_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Processing Status",
+   "options": "Pending\nProcessed\nFailed",
+   "search_index": 1
+  },
+  {
+   "fieldname": "email_queue",
+   "fieldtype": "Link",
+   "label": "Email Queue",
+   "options": "Email Queue",
+   "read_only": 1
+  },
+  {
+   "fieldname": "details_section",
+   "fieldtype": "Section Break",
+   "label": "Event Details"
+  },
+  {
+   "fieldname": "status_code",
+   "fieldtype": "Data",
+   "label": "Status Code",
+   "length": 20,
+   "read_only": 1
+  },
+  {
+   "fieldname": "reason",
+   "fieldtype": "Small Text",
+   "label": "Reason",
+   "read_only": 1
+  },
+  {
+   "fieldname": "response",
+   "fieldtype": "Small Text",
+   "label": "Response",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_details",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bounce_classification",
+   "fieldtype": "Data",
+   "label": "Bounce Classification",
+   "length": 140,
+   "read_only": 1
+  },
+  {
+   "fieldname": "bounce_type",
+   "fieldtype": "Data",
+   "label": "Bounce Type",
+   "length": 40,
+   "read_only": 1
+  },
+  {
+   "fieldname": "attempt",
+   "fieldtype": "Int",
+   "label": "Attempt",
+   "read_only": 1
+  },
+  {
+   "fieldname": "processing_section",
+   "fieldtype": "Section Break",
+   "label": "Processing"
+  },
+  {
+   "fieldname": "error_log",
+   "fieldtype": "Small Text",
+   "label": "Error Log",
+   "read_only": 1
+  },
+  {
+   "fieldname": "raw_payload",
+   "fieldtype": "JSON",
+   "label": "Raw Payload",
+   "read_only": 1
+  },
+  {
+   "fieldname": "email_subject",
+   "fieldtype": "Data",
+   "label": "Email Subject",
+   "read_only": 1
+  }
+ ],
+ "in_create": 1,
+ "links": [],
+ "modified": "2026-06-08 11:47:17.101233",
+ "modified_by": "Administrator",
+ "module": "Frappe SendGrid Event",
+ "name": "SendGrid Event",
+ "naming_rule": "Random",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "read": 1,
+   "role": "System Manager"
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
