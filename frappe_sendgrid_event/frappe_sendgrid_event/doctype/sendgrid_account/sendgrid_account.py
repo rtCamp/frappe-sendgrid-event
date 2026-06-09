@@ -5,5 +5,5 @@
 from frappe.model.document import Document
 
 
-class SendGridEventSettings(Document):
+class SendGridAccount(Document):
 	pass

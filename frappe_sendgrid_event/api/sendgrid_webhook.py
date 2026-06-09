@@ -1,12 +1,3 @@
-"""SendGrid Event Webhook receiver.
-
-Handles delivery event callbacks from SendGrid, verifies ECDSA signatures,
-and bulk-inserts events for async processing. Designed for high throughput:
-- Returns HTTP 200 immediately after insert (no Email Queue lookups in hot path)
-- Uses INSERT IGNORE for idempotent deduplication on sg_event_id
-- ECDSA signature verification prevents unauthorised access
-"""
-
 from __future__ import annotations
 
 import base64
@@ -14,7 +5,11 @@ import json
 from datetime import UTC, datetime
 
 import frappe
+from frappe.model.naming import make_autoname
+from frappe.utils.password import decrypt
 from frappe import _
+from pypika import Table
+
 
 # Delivery event types we track; engagement/account events are intentionally excluded
 DELIVERY_EVENTS = frozenset({"processed", "delivered", "bounce", "deferred", "dropped"})
@@ -28,6 +23,7 @@ _INSERT_FIELDS = [
 	"sg_message_id",
 	"message_id",
 	"email_queue",
+	"sendgrid_account",
 	"event_type",
 	"recipient_email",
 	"event_timestamp",
@@ -48,42 +44,33 @@ _INSERT_FIELDS = [
 
 @frappe.whitelist(allow_guest=True, methods=["POST"])
 def handle():
-	"""Receive and store SendGrid Event Webhook delivery events.
+	"""
+	Receive and store SendGrid Event Webhook delivery events.
 
 	This endpoint is called by SendGrid with batches of event data.
 	It verifies the ECDSA signature, filters to delivery events, and
-	bulk-inserts them for background processing. Returns 200 immediately.
-	"""
-	settings_doc = frappe.get_cached_doc("SendGrid Event Settings")
-	if not settings_doc.enable_sendgrid_webhook:
-		frappe.throw(_("SendGrid webhook is not enabled"), frappe.AuthenticationError)
+	bulk-inserts them for background processing.
 
-	# Raw payload must be read before any transformation for correct signature verification
+	Returns:
+		{
+			"status": "ok",
+			"accepted": <number of delivery events accepted>,
+			"total": <total number of events in payload>
+		}
+	"""
 	raw_payload: str = frappe.request.get_data(as_text=True)
 	if not raw_payload:
 		frappe.throw(_("Empty request body"), frappe.ValidationError)
 
-	# Verify ECDSA signature when a verification key is configured
-	verification_key = ""
-	if settings_doc.webhook_verification_key:
-		verification_key = (settings_doc.get_password("webhook_verification_key") or "").strip()
-	if verification_key:
-		signature = frappe.request.headers.get("X-Twilio-Email-Event-Webhook-Signature", "")
-		timestamp = frappe.request.headers.get("X-Twilio-Email-Event-Webhook-Timestamp", "")
-		if not signature or not timestamp:
-			frappe.throw(_("Missing webhook signature headers"), frappe.AuthenticationError)
-		if not _verify_signature(raw_payload, signature, timestamp, verification_key):
-			frappe.throw(_("Invalid webhook signature"), frappe.AuthenticationError)
-	else:
-		frappe.logger("sendgrid_webhook").warning(
-			"SendGrid webhook received without signature verification. "
-			"Set webhook_verification_key in SendGrid Event Settings."
-		)
+	sendgrid_account = get_associated_sendgrid_account()
+
+	if not sendgrid_account:
+		return {"status": "ok", "accepted": 0, "total": 0}
 
 	# Parse and validate payload structure
 	try:
 		events = json.loads(raw_payload)
-	except json.JSONDecodeError, TypeError:
+	except (json.JSONDecodeError, TypeError):
 		frappe.throw(_("Invalid JSON payload"), frappe.ValidationError)
 
 	if not isinstance(events, list):
@@ -95,30 +82,31 @@ def handle():
 			frappe.ValidationError,
 		)
 
-	# Filter to delivery events; drop any non-dict items defensively
 	delivery_events = [e for e in events if isinstance(e, dict) and e.get("event") in DELIVERY_EVENTS]
+
+	settings_doc = frappe.get_cached_doc("SendGrid Account", sendgrid_account)
 
 	target_email_accounts = [
 		row.email_account for row in settings_doc.get("email_accounts", []) if row.email_account
 	]
 
 	if delivery_events and target_email_accounts:
-		_bulk_insert_events(delivery_events, target_email_accounts)
+		_bulk_insert_events(delivery_events, target_email_accounts, sendgrid_account)
 
-	# Return 200 immediately — processing happens in background
 	return {"status": "ok", "accepted": len(delivery_events), "total": len(events)}
 
 
-def _verify_signature(payload: str, signature: str, timestamp: str, public_key_b64: str) -> bool:
+def _verify_signature(payload: str, signature: str, timestamp: str, account_name: str, encrypted_key: str) -> bool:
 	"""Verify the ECDSA signature from SendGrid's Signed Event Webhook.
 
-	Algorithm (identical to the official sendgrid-python SDK)::
+	Algorithm:
 
 	    hash  = SHA256(timestamp_bytes || payload_bytes)
 	    valid = ECDSA_verify(public_key, hash, base64decode(signature))
 
 	Returns True when valid, False for every error case — never raises.
 	"""
+	public_key_b64 = decrypt(encrypted_key, key=f"SendGrid Account.{account_name}.webhook_verification_key")
 	try:
 		from cryptography.exceptions import InvalidSignature
 		from cryptography.hazmat.primitives import hashes
@@ -140,12 +128,11 @@ def _verify_signature(payload: str, signature: str, timestamp: str, public_key_b
 	except InvalidSignature:
 		return False
 	except Exception:
-		# Broad catch is intentional: fail safe on malformed key/signature
 		frappe.logger("sendgrid_webhook").error("SendGrid signature verification error", exc_info=True)
 		return False
 
 
-def _bulk_insert_events(events: list[dict], target_email_accounts: list[str]) -> None:
+def _bulk_insert_events(events: list[dict], target_email_accounts: list[str], sendgrid_account: str) -> None:
 	"""Bulk-insert delivery events, safely handling idempotency.
 
 	Pre-fetches existing sg_event_ids to eliminate duplicates before generating
@@ -165,7 +152,6 @@ def _bulk_insert_events(events: list[dict], target_email_accounts: list[str]) ->
 			)
 		)
 
-	# Pre-fetch email queues to avoid N+1 queries
 	message_ids = {e.get("smtp-id", "").strip("<>") for e in events if e.get("smtp-id")}
 	queue_map = {}
 	if message_ids:
@@ -190,26 +176,27 @@ def _bulk_insert_events(events: list[dict], target_email_accounts: list[str]) ->
 
 		rows.append(
 			[
-				frappe.generate_hash(length=10),  # name
-				sg_event_id,  # sg_event_id
-				event.get("sg_message_id") or "",  # sg_message_id
-				message_id,  # message_id
-				email_queue_name,  # email_queue
-				event.get("event") or "",  # event_type
-				event.get("email") or "",  # recipient_email
-				_unix_to_datetime(event.get("timestamp")),  # event_timestamp
-				"Pending",  # processing_status
-				event.get("status") or "",  # status_code
-				(event.get("reason") or "")[:65535],  # reason
-				(event.get("response") or "")[:65535],  # response
-				event.get("bounce_classification") or "",  # bounce_classification
-				event.get("type") or "",  # bounce_type
-				int(event.get("attempt") or 0),  # attempt
-				json.dumps(event, default=str),  # raw_payload
-				now,  # creation
-				now,  # modified
-				user,  # owner
-				user,  # modified_by
+				make_autoname("hash", doctype="SendGrid Event"),
+				sg_event_id,
+				event.get("sg_message_id") or "",
+				message_id,
+				email_queue_name,
+				sendgrid_account,
+				event.get("event") or "",
+				event.get("email") or "",
+				_unix_to_datetime(event.get("timestamp")),
+				"Pending",
+				event.get("status") or "",
+				(event.get("reason") or "")[:65535],
+				(event.get("response") or "")[:65535],
+				event.get("bounce_classification") or "",
+				event.get("type") or "",
+				int(event.get("attempt") or 0),
+				json.dumps(event, default=str),
+				now,
+				now,
+				user,
+				user,
 			]
 		)
 
@@ -232,12 +219,40 @@ def _unix_to_datetime(timestamp) -> str | None:
 	try:
 		dt_utc = datetime.fromtimestamp(int(timestamp), tz=UTC)
 		return frappe.utils.convert_utc_to_system_timezone(dt_utc).strftime("%Y-%m-%d %H:%M:%S")
-	except ValueError, TypeError, OSError:
+	except (ValueError, TypeError, OSError):
 		return None
 
 
-#  Convert to system time zome
-#  Cild table with apt filters on service, smtp and outgoing
-#  event kitne time main aur kitne fire hote from sendgrid for sync / async
-#  Name change for events to random hash
-#  No change in email queue
+def get_associated_sendgrid_account() -> str | None:
+	"""
+	Perform a join query on __Auth table with "SendGrid Account" to link
+	the name of the SendGrid account to the verification key.
+	Then verify if any of the accounts verification key can verify the current signature.
+	If signature is valid return the name of the account, otherwise return None.
+	"""
+	Auth = Table("__Auth")
+	SendGridAccount = frappe.qb.DocType("SendGrid Account")
+	account = (
+		frappe.qb.from_("SendGrid Account")
+		.join(Auth)
+		.on(
+			(Auth.doctype == "SendGrid Account")
+			& (Auth.name == SendGridAccount.name)
+			& (Auth.fieldname == "webhook_verification_key")
+		)
+		.select(SendGridAccount.name, Auth.password)
+		.where(SendGridAccount.webhook_verification_key.isnotnull())
+		.where(SendGridAccount.enable_sendgrid_webhook == 1)
+	).run(as_dict=True)
+
+	for row in account:
+		if row.name and _verify_signature(
+			payload=frappe.request.get_data(as_text=True),
+			signature=frappe.request.headers.get("X-Twilio-Email-Event-Webhook-Signature", ""),
+			timestamp=frappe.request.headers.get("X-Twilio-Email-Event-Webhook-Timestamp", ""),
+			account_name=row.name,
+			encrypted_key=row.password,
+		):
+			return row.name
+
+	return None
