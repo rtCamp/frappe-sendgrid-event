@@ -5,7 +5,7 @@ and extracts the subject line from the original message. Runs as a scheduled job
 
 Design principles:
 - Processes in batches of BATCH_SIZE to bound per-run execution time
-- Single DB commit per batch for efficiency (no per-event commit overhead)
+- Two bulk DB updates per batch (processed / failed) — no per-event query overhead
 - Per-event error isolation — one failure is recorded without blocking the batch
 - All operations are idempotent; safe to re-run after an unexpected crash
 """
@@ -16,7 +16,6 @@ import email
 from email.header import decode_header
 
 import frappe
-from frappe.query_builder import DocType
 from frappe.utils import add_days, now_datetime
 
 # Batch size per scheduler run
@@ -27,7 +26,7 @@ def execute() -> None:
     """Entry point called by the scheduler every 5 minutes.
 
     Fetches pending events, correlates with Email Queue to extract the subject
-    line, then commits the entire batch in a single transaction.
+    line, then writes processed and failed updates each in a single bulk query.
     """
     settings = frappe.get_cached_doc("SendGrid Event Settings")
     if not settings.get("enable_sendgrid_webhook"):
@@ -48,7 +47,6 @@ def execute() -> None:
     if not pending_events:
         return
 
-    # Pre-fetch all related Email Queues to eliminate N+1 queries in the loop
     message_ids = {e.message_id for e in pending_events if e.message_id}
     queue_map = {}
     if message_ids:
@@ -60,94 +58,79 @@ def execute() -> None:
         for q in queues:
             queue_map[q.message_id] = q
 
-    for event in pending_events:
-        _process_single_event(event, queue_map)
+    processed_updates: dict = {}
+    failed_updates: dict = {}
 
-    # Single commit covers all event status updates in this batch
-    frappe.db.commit()  # nosemgrep Required to persist status updates and cleanup deletions
+    for event in pending_events:
+        result = _process_single_event(event, queue_map)
+        if result.pop("has_error"):
+            name = result.pop("name")
+            failed_updates[name] = result
+        else:
+            name = result.pop("name")
+            processed_updates[name] = result
+
+    if processed_updates:
+        frappe.db.bulk_update("SendGrid Event", processed_updates)
+    if failed_updates:
+        frappe.db.bulk_update("SendGrid Event", failed_updates)
+
     _cleanup_old_events(settings)
 
 
-def _process_single_event(event: dict, queue_map: dict) -> None:
+def _process_single_event(event: dict, queue_map: dict) -> dict:
     """Resolve an event's Email Queue link and extract the email subject.
 
-    Errors are caught per-event and recorded on the event itself so a single
-    failure does not prevent the rest of the batch from committing.
+    Returns an update dict with a ``has_error`` flag so the caller can route the
+    record into the correct bulk-update group without a per-event DB write.
     """
     try:
         email_queue_name: str | None = None
         email_subject: str | None = None
 
         message_id = event.get("message_id")
-        if message_id:
-            eq_data = frappe.db.get_value(
-                "Email Queue",
-                {"message_id": message_id},
-                ["name", "message"],
-            )
-            if eq_data:
-                email_queue_name, raw_message = eq_data
-                if raw_message:
-                    msg = email.message_from_string(raw_message)
-                    raw_subject = msg.get("Subject") or ""
+        if message_id and message_id in queue_map:
+            eq_data = queue_map[message_id]
+            email_queue_name = eq_data.name
+            raw_message = eq_data.message
+            if raw_message:
+                msg = email.message_from_string(raw_message)
+                raw_subject = msg.get("Subject") or ""
 
-                    decoded_fragments = []
-                    for fragment, charset in decode_header(raw_subject):
-                        if isinstance(fragment, bytes):
-                            charset = charset or "utf-8"
-                            try:
-                                fragment = fragment.decode(charset, errors="replace")
-                            except LookupError:
-                                fragment = fragment.decode("utf-8", errors="replace")
-                        decoded_fragments.append(fragment)
+                decoded_fragments = []
+                for fragment, charset in decode_header(raw_subject):
+                    if isinstance(fragment, bytes):
+                        charset = charset or "utf-8"
+                        try:
+                            fragment = fragment.decode(charset, errors="replace")
+                        except LookupError:
+                            fragment = fragment.decode("utf-8", errors="replace")
+                    decoded_fragments.append(fragment)
 
-                    email_subject = "".join(decoded_fragments).strip()
+                email_subject = "".join(decoded_fragments).strip()
 
-        update_data = {"processing_status": "Processed", "email_queue": email_queue_name}
-        if email_subject:
-            update_data["email_subject"] = email_subject[:255]
-
-        frappe.db.set_value(
-            "SendGrid Event",
-            event.get("name"),
-            update_data,
-            update_modified=False,
-        )
+        return {
+            "name": event.get("name"),
+            "processing_status": "Processed",
+            "email_queue": email_queue_name,
+            "email_subject": email_subject[:255] if email_subject else None,
+            "has_error": False,
+        }
     except Exception:
-        frappe.db.set_value(
-            "SendGrid Event",
-            event.get("name"),
-            {
-                "processing_status": "Failed",
-                "error_log": frappe.get_traceback(with_context=False)[:65535],
-            },
-            update_modified=False,
-        )
+        return {
+            "name": event.get("name"),
+            "processing_status": "Failed",
+            "error_log": frappe.get_traceback(),
+            "has_error": True,
+        }
 
 
 def _cleanup_old_events(settings) -> None:
-    """Delete processed events older than the configured retention period.
-
-    Bounded to 1 000 rows per cleanup run to avoid long-running table locks.
-    Uses a SELECT-then-DELETE pattern so we can apply a row limit without
-    resorting to raw SQL.
-    """
+    """Delete processed events older than the configured retention period."""
     retention_days = settings.get("event_retention_days") or 0
     if not retention_days:
         return
 
     cutoff_date = add_days(now_datetime(), -int(retention_days))
 
-    old_events = frappe.db.get_all(
-        "SendGrid Event",
-        filters={"processing_status": "Processed", "creation": ("<", cutoff_date)},
-        fields=["name"],
-        limit=5000,
-    )
-    if not old_events:
-        return
-
-    names = [r.name for r in old_events]
-    ase = DocType("SendGrid Event")
-    frappe.qb.from_(ase).delete().where(ase.name.isin(names)).run()
-    frappe.db.commit()  # nosemgrep Required to persist deletions
+    frappe.db.delete("SendGrid Event", filters={"processing_status": "Failed", "creation": ("<", cutoff_date)})

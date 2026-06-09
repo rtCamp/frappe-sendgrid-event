@@ -113,13 +113,13 @@
   },
   {
    "fieldname": "reason",
-   "fieldtype": "Small Text",
+   "fieldtype": "Code",
    "label": "Reason",
    "read_only": 1
   },
   {
    "fieldname": "response",
-   "fieldtype": "Small Text",
+   "fieldtype": "Code",
    "label": "Response",
    "read_only": 1
   },
@@ -154,7 +154,7 @@
   },
   {
    "fieldname": "error_log",
-   "fieldtype": "Small Text",
+   "fieldtype": "Code",
    "label": "Error Log",
    "read_only": 1
   },

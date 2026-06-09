@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import base64
 import json
-from datetime import UTC, datetime
 
 import frappe
 from frappe import _
 from frappe.model.naming import make_autoname
+from frappe.utils import _convert_utc_to_system_timezone
 from frappe.utils.password import decrypt
 from pypika import Table
 
@@ -177,11 +177,11 @@ def _bulk_insert_events(events: list[dict], target_email_accounts: list[str], se
                 sendgrid_account,
                 event.get("event") or "",
                 event.get("email") or "",
-                _unix_to_datetime(event.get("timestamp")),
+                _convert_utc_to_system_timezone(event.get("timestamp")),
                 "Pending",
                 event.get("status") or "",
-                (event.get("reason") or "")[:65535],
-                (event.get("response") or "")[:65535],
+                (event.get("reason") or ""),
+                (event.get("response") or ""),
                 event.get("bounce_classification") or "",
                 event.get("type") or "",
                 int(event.get("attempt") or 0),
@@ -196,24 +196,7 @@ def _bulk_insert_events(events: list[dict], target_email_accounts: list[str], se
     if not rows:
         return
 
-    frappe.db.bulk_insert(
-        "SendGrid Event",
-        fields=_INSERT_FIELDS,
-        values=rows,
-        ignore_duplicates=True,
-        chunk_size=100,
-    )
-
-
-def _unix_to_datetime(timestamp) -> str | None:
-    """Convert a Unix epoch value to a system datetime string for MariaDB storage."""
-    if not timestamp:
-        return None
-    try:
-        dt_utc = datetime.fromtimestamp(int(timestamp), tz=UTC)
-        return frappe.utils.convert_utc_to_system_timezone(dt_utc).strftime("%Y-%m-%d %H:%M:%S")
-    except ValueError, TypeError, OSError:
-        return None
+    frappe.db.bulk_insert("SendGrid Event", fields=_INSERT_FIELDS, values=rows, ignore_duplicates=True)
 
 
 def get_associated_sendgrid_account() -> str | None:
