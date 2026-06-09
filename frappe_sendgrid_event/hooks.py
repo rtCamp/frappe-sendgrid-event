@@ -2,7 +2,7 @@ app_name = "frappe_sendgrid_event"
 app_title = "Frappe SendGrid Event"
 app_publisher = "rtCamp"
 app_description = "Receive and track SendGrid email events in Frappe via webhooks"
-app_email = "erp@rtcamp.com"
+app_email = "frappe@rtcamp.com"
 app_license = "GNU AFFERO GENERAL PUBLIC LICENSE (v3)"
 
 # Apps
@@ -12,13 +12,13 @@ app_license = "GNU AFFERO GENERAL PUBLIC LICENSE (v3)"
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
-# 	{
-# 		"name": "frappe_sendgrid_event",
-# 		"logo": "/assets/frappe_sendgrid_event/logo.png",
-# 		"title": "Frappe SendGrid Event",
-# 		"route": "/frappe_sendgrid_event",
-# 		"has_permission": "frappe_sendgrid_event.api.permission.has_app_permission"
-# 	}
+#   {
+#       "name": "frappe_sendgrid_event",
+#       "logo": "/assets/frappe_sendgrid_event/logo.png",
+#       "title": "Frappe SendGrid Event",
+#       "route": "/frappe_sendgrid_event",
+#       "has_permission": "frappe_sendgrid_event.api.permission.has_app_permission"
+#   }
 # ]
 
 # Includes in <head>
@@ -61,7 +61,7 @@ app_license = "GNU AFFERO GENERAL PUBLIC LICENSE (v3)"
 
 # website user home page (by Role)
 # role_home_page = {
-# 	"Role": "home_page"
+#   "Role": "home_page"
 # }
 
 # Generators
@@ -78,8 +78,8 @@ app_license = "GNU AFFERO GENERAL PUBLIC LICENSE (v3)"
 
 # add methods and filters to jinja environment
 # jinja = {
-# 	"methods": "frappe_sendgrid_event.utils.jinja_methods",
-# 	"filters": "frappe_sendgrid_event.utils.jinja_filters"
+#   "methods": "frappe_sendgrid_event.utils.jinja_methods",
+#   "filters": "frappe_sendgrid_event.utils.jinja_filters"
 # }
 
 # Installation
@@ -121,11 +121,11 @@ app_license = "GNU AFFERO GENERAL PUBLIC LICENSE (v3)"
 # Permissions evaluated in scripted ways
 
 # permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
+#   "Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
 # }
 #
 # has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
+#   "Event": "frappe.desk.doctype.event.event.has_permission",
 # }
 
 # Document Events
@@ -133,22 +133,22 @@ app_license = "GNU AFFERO GENERAL PUBLIC LICENSE (v3)"
 # Hook on document methods and events
 
 # doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
+#   "*": {
+#       "on_update": "method",
+#       "on_cancel": "method",
+#       "on_trash": "method"
+#   }
 # }
 
 # Scheduled Tasks
 # ---------------
 
 scheduler_events = {
-	"cron": {
-		"*/5 * * * *": [
-			"frappe_sendgrid_event.tasks.process_sendgrid_events.execute",
-		],
-	},
+    "cron": {
+        "*/5 * * * *": [
+            "frappe_sendgrid_event.tasks.process_sendgrid_events.execute",
+        ],
+    },
 }
 
 # Testing
@@ -161,21 +161,21 @@ scheduler_events = {
 #
 # Specify custom mixins to extend the standard doctype controller.
 # extend_doctype_class = {
-# 	"Task": "frappe_sendgrid_event.custom.task.CustomTaskMixin"
+#   "Task": "frappe_sendgrid_event.custom.task.CustomTaskMixin"
 # }
 
 # Overriding Methods
 # ------------------------------
 #
 # override_whitelisted_methods = {
-# 	"frappe.desk.doctype.event.event.get_events": "frappe_sendgrid_event.event.get_events"
+#   "frappe.desk.doctype.event.event.get_events": "frappe_sendgrid_event.event.get_events"
 # }
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
 # along with any modifications made in other Frappe apps
 # override_doctype_dashboards = {
-# 	"Task": "frappe_sendgrid_event.task.get_dashboard_data"
+#   "Task": "frappe_sendgrid_event.task.get_dashboard_data"
 # }
 
 # exempt linked doctypes from being automatically cancelled
@@ -201,38 +201,38 @@ scheduler_events = {
 # --------------------
 
 # user_data_fields = [
-# 	{
-# 		"doctype": "{doctype_1}",
-# 		"filter_by": "{filter_by}",
-# 		"redact_fields": ["{field_1}", "{field_2}"],
-# 		"partial": 1,
-# 	},
-# 	{
-# 		"doctype": "{doctype_2}",
-# 		"filter_by": "{filter_by}",
-# 		"partial": 1,
-# 	},
-# 	{
-# 		"doctype": "{doctype_3}",
-# 		"strict": False,
-# 	},
-# 	{
-# 		"doctype": "{doctype_4}"
-# 	}
+#   {
+#       "doctype": "{doctype_1}",
+#       "filter_by": "{filter_by}",
+#       "redact_fields": ["{field_1}", "{field_2}"],
+#       "partial": 1,
+#   },
+#   {
+#       "doctype": "{doctype_2}",
+#       "filter_by": "{filter_by}",
+#       "partial": 1,
+#   },
+#   {
+#       "doctype": "{doctype_3}",
+#       "strict": False,
+#   },
+#   {
+#       "doctype": "{doctype_4}"
+#   }
 # ]
 
 # Authentication and authorization
 # --------------------------------
 
 # auth_hooks = [
-# 	"frappe_sendgrid_event.auth.validate"
+#   "frappe_sendgrid_event.auth.validate"
 # ]
 
 # Automatically update python controller files with type annotations for this app.
-# export_python_type_annotations = True
+export_python_type_annotations = True
 
 # default_log_clearing_doctypes = {
-# 	"Logging DocType Name": 30  # days to retain logs
+#   "Logging DocType Name": 30  # days to retain logs
 # }
 
 # Translation

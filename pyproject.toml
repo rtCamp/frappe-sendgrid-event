@@ -1,7 +1,7 @@
 [project]
 name = "frappe_sendgrid_event"
 authors = [
-    { name = "rtCamp", email = "erp@rtcamp.com"}
+    { name = "rtCamp", email = "frappe@rtcamp.com"}
 ]
 description = "Receive and track SendGrid email events in Frappe via webhooks"
 requires-python = ">=3.14"
@@ -24,7 +24,7 @@ build-backend = "flit_core.buildapi"
 packages = []
 
 [tool.ruff]
-line-length = 110
+line-length = 120
 target-version = "py314"
 
 [tool.ruff.lint]
@@ -61,5 +61,5 @@ typing-modules = ["frappe.types.DF"]
 
 [tool.ruff.format]
 quote-style = "double"
-indent-style = "tab"
+indent-style = "space"
 docstring-code-format = true

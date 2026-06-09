@@ -1,11 +1,11 @@
 exclude: "(^|/)(node_modules|\\.git)(/|$)"
 default_stages: [pre-commit]
-default_install_hook_types: [pre-commit, commit-msg]
+default_install_hook_types: [pre-commit]
 fail_fast: false
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
         files: "frappe_sendgrid_event.*"
@@ -19,13 +19,13 @@ repos:
       - id: end-of-file-fixer
 
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.5.5
+    rev: v1.5.6
     hooks:
       - id: forbid-tabs
         exclude: "Makefile|.*\\.tsv|.*\\.go"
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.10
+    rev: v0.15.16
     hooks:
       - id: ruff
         name: "Run ruff import sorter"
@@ -38,7 +38,7 @@ repos:
         name: "Run ruff formatter"
 
   - repo: https://github.com/pre-commit/mirrors-eslint
-    rev: v9.30.1
+    rev: v10.4.1
     hooks:
       - id: eslint
         name: "ESlint-js"
@@ -64,24 +64,12 @@ repos:
         language: system
         always_run: true
 
-  - repo: local
-    hooks:
-      - id: eslint
-        name: "ESlint"
-        entry: bash -c 'cd desk && npm run lint:precommit'
-        language: system
-        files: ^desk/src_override/.*\.(vue|jsx|tsx|ts)$
-        types: [file]
-        pass_filenames: true
-        exclude: |
-          (?x)^(
-              .*node_modules.*
-          )$
 
   - repo: https://github.com/semgrep/pre-commit
-    rev: "v1.149.0"
+    rev: "v1.165.0"
     hooks:
       - id: semgrep-ci
+        language_version: python3.13
         args:
           [
             "--config",
