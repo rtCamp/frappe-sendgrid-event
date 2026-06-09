@@ -6,7 +6,7 @@ This app integrates directly with SendGrid's Event Webhook API to capture real-t
 
 ## Features & Architecture
 
-- **High Throughput & Async Cron Processing:** The webhook endpoint is designed for massive scale. Instead of doing expensive database lookups on the fly, it verifies the ECDSA signature, deduplicates seamlessly via `INSERT IGNORE`, and bulk-inserts events as `Pending` into the `SendGrid Event` doctype. A scheduled background job (cron) asynchronously processes these pending events later, ensuring the webhook never times out.
+- **High Throughput & Async Cron Processing:** The webhook endpoint is designed for scale. A scheduled background job (cron) asynchronously processes pending events later, ensuring the webhook doesn't times out.
 - **Email Queue Linking:** The app parses SendGrid's `smtp-id` and correctly maps it to Frappe's `message_id`, linking the external delivery event directly back to the original `Email Queue` record.
 - **Account Specific Filtering:** Built to handle environments where multiple SendGrid accounts might route to the same instance. It checks the `email_account` tied to the outgoing `Email Queue` and only logs events if they match the designated email account specified in the settings.
 - **Secure by Default:** Enforces ECDSA signature verification to prevent spoofed or unauthorized data from being injected into your database.
