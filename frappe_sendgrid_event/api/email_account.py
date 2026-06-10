@@ -1,11 +1,15 @@
 import frappe
+from frappe.desk.search import sanitize_searchfield
 from frappe.query_builder import DocType
+from frappe.utils import cint
 from pypika import Order
 
 
 @frappe.whitelist()
-@frappe.validate_and_sanitize_search_inputs
 def sendgrid_email_account_query(txt: str, searchfield: str, start: int, page_len: int):
+    sanitize_searchfield(searchfield)
+    start = cint(start)
+    page_len = cint(page_len)
     EmailAccount = DocType("Email Account")
 
     return (
