@@ -42,7 +42,7 @@
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "links": [],
- "modified": "2026-06-08 16:45:20.863680",
+ "modified": "2026-06-10 23:37:52.689497",
  "modified_by": "Administrator",
  "module": "Frappe SendGrid Event",
  "name": "SendGrid Account",

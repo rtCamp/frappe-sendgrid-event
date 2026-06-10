@@ -181,7 +181,7 @@
  ],
  "in_create": 1,
  "links": [],
- "modified": "2026-06-08 16:47:23.070461",
+ "modified": "2026-06-10 23:38:23.731801",
  "modified_by": "Administrator",
  "module": "Frappe SendGrid Event",
  "name": "SendGrid Event",
