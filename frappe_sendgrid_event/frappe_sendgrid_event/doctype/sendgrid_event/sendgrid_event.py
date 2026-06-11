@@ -64,7 +64,7 @@ class SendGridEvent(Document):
             {
                 "label": "Subject",
                 "type": "Data",
-                "key": "subject",
+                "key": "email_subject",
                 "width": "20rem",
             },
         ]
@@ -74,7 +74,7 @@ class SendGridEvent(Document):
             "recipient_email",
             "event_type",
             "event_timestamp",
-            "subject",
+            "email_subject",
         ]
         return {
             "columns": columns,
