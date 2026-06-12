@@ -9,11 +9,11 @@ from pypika import Order
 
 @frappe.whitelist()
 def sendgrid_email_account_query(
-    doctype,
-    txt,
-    searchfield,
-    start,
-    page_length,
+    doctype=None,
+    txt="",
+    searchfield="name",
+    start=0,
+    page_length=20,
     filters=None,
 ):
     """
