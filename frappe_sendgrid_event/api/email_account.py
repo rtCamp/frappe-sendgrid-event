@@ -18,9 +18,6 @@ def sendgrid_email_account_query(
 ):
     """
     Custom Link-field query for SendGrid Email Accounts.
-
-    Signature matches Frappe's search_link custom query convention:
-        (doctype, txt, searchfield, start, page_length, filters)
     """
 
     sanitize_searchfield(searchfield)
@@ -58,5 +55,4 @@ def sendgrid_email_account_query(
         .run()
     )
 
-    # Standard Link-field query return format
     return rows
