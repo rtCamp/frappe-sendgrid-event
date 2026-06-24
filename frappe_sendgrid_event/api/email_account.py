@@ -9,12 +9,12 @@ from pypika import Order
 
 @frappe.whitelist()
 def sendgrid_email_account_query(
-    doctype=None,
-    txt="",
-    searchfield="name",
-    start=0,
-    page_length=20,
-    filters=None,
+    doctype: str | None = None,
+    txt: str = "",
+    searchfield: str = "name",
+    start: int = 0,
+    page_length: int = 20,
+    filters: dict | None = None,
 ):
     """
     Custom Link-field query for SendGrid Email Accounts.
@@ -37,22 +37,12 @@ def sendgrid_email_account_query(
         frappe.qb.from_(EmailAccount)
         .select(EmailAccount.name)
         .where(EmailAccount.enable_outgoing == 1)
-        .where(
-            (EmailAccount.service == "Sendgrid")
-            | (EmailAccount.smtp_server.like("%sendgrid%"))
-        )
+        .where((EmailAccount.service == "Sendgrid") | (EmailAccount.smtp_server.like("%sendgrid%")))
     )
 
     if txt:
-        query = query.where(
-            EmailAccount[searchfield].like(f"%{txt}%")
-        )
+        query = query.where(EmailAccount[searchfield].like(f"%{txt}%"))
 
-    rows = (
-        query.orderby(EmailAccount.name, order=Order.asc)
-        .limit(page_length)
-        .offset(start)
-        .run()
-    )
+    rows = query.orderby(EmailAccount.name, order=Order.asc).limit(page_length).offset(start).run()
 
     return rows

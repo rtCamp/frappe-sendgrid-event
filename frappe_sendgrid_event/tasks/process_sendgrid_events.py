@@ -28,9 +28,6 @@ def execute() -> None:
     Fetches pending events, correlates with Email Queue to extract the subject
     line, then writes processed and failed updates each in a single bulk query.
     """
-    settings = frappe.get_cached_doc("SendGrid Event Settings")
-    if not settings.get("enable_sendgrid_webhook"):
-        return
 
     pending_events = frappe.db.get_all(
         "SendGrid Event",
@@ -75,7 +72,7 @@ def execute() -> None:
     if failed_updates:
         frappe.db.bulk_update("SendGrid Event", failed_updates)
 
-    _cleanup_old_events(settings)
+    _cleanup_old_events()
 
 
 def _process_single_event(event: dict, queue_map: dict) -> dict:
@@ -125,12 +122,21 @@ def _process_single_event(event: dict, queue_map: dict) -> dict:
         }
 
 
-def _cleanup_old_events(settings) -> None:
-    """Delete processed events older than the configured retention period."""
-    retention_days = settings.get("event_retention_days") or 0
-    if not retention_days:
-        return
+def _cleanup_old_events() -> None:
+    """Delete failed events older than each account's configured retention period."""
+    accounts = frappe.get_all(
+        "SendGrid Account",
+        filters={"event_retention_days": (">", 0)},
+        fields=["name", "event_retention_days"],
+    )
 
-    cutoff_date = add_days(now_datetime(), -int(retention_days))
-
-    frappe.db.delete("SendGrid Event", filters={"processing_status": "Failed", "creation": ("<", cutoff_date)})
+    for account in accounts:
+        cutoff_date = add_days(now_datetime(), -int(account.event_retention_days))
+        frappe.db.delete(
+            "SendGrid Event",
+            filters={
+                "sendgrid_account": account.name,
+                "processing_status": "Failed",
+                "creation": ("<", cutoff_date),
+            },
+        )
