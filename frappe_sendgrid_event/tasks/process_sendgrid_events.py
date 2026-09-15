@@ -110,7 +110,7 @@ def _process_single_event(event: dict, queue_map: dict) -> dict:
             "name": event.get("name"),
             "processing_status": "Processed",
             "email_queue": email_queue_name,
-            "email_subject": email_subject[:255] if email_subject else None,
+            "email_subject": email_subject[:140] if email_subject else None,
             "has_error": False,
         }
     except Exception:
